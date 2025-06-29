@@ -41,7 +41,11 @@ def display_data(display_events):
     from collections import defaultdict
     summary = defaultdict(lambda: {"count": 0, "commits": 0, "actions": []})
 
-    filtered_events = [e for e in events if e.get("type") == filter_event_type] if filter_event_type else events
+    filtered_events = [e for e in display_events if e.get("type") == filter_event_type] if filter_event_type else display_events
+
+    if not filtered_events:
+        print("- No events found")
+        return
 
     for event in filtered_events:
         event_type = event.get("type")
@@ -51,8 +55,26 @@ def display_data(display_events):
         key = (event_type, repo)
         summary[key]["count"] += 1
 
-        # if event_type == "PushEvent":
-            # summary["key"]["commits"] +=
+        if event_type == "PushEvent":
+            summary[key]["commits"] += len(payload.get("commits", []))
+        elif event_type == "IssuesEvent":
+            summary[key]["actions"].append(payload.get("action", "did something"))
+
+    for (event_type, repo), data in summary.items():
+        match event_type:
+            case "PushEvent":
+                print(f"- Pushed {data['commits']} commit{'s' if data['commits'] != 1 else ''} to {repo}")
+            case "IssuesEvent":
+                actions = set(data['actions'])
+                for action in actions:
+                    count = data['actions'].count(action)
+                    print(f"- {action.capitalize()} {count} issue{'s' if count > 1 else ''} in {repo}")
+            case "WatchEvent":
+                print(f"- Starred {repo} ({data['count']} time{'s' if data['count'] > 1 else ''})")
+            case "ForkEvent":
+                print(f"- Forked {repo} ({data['count']} time{'s' if data['count'] > 1 else ''})")
+            case _:
+                print(f"- {event_type} in {repo} ({data['count']} event{'s' if data['count'] > 1 else ''})")
 
     print("\n")
 
